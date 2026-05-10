@@ -1,4 +1,4 @@
-package com.ptrip.ptripbe.tour.client;
+package com.ptrip.ptripbe.application.tour;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ptrip.ptripbe.config.TourApiProperties;

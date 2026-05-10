@@ -1,8 +1,8 @@
-package com.ptrip.ptripbe.tour.client;
+package com.ptrip.ptripbe.application.tour;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ptrip.ptripbe.application.tour.model.TourApiEnvelope;
 import com.ptrip.ptripbe.config.TourApiProperties;
 import com.ptrip.ptripbe.tour.exception.ExternalApiException;
 import org.springframework.http.MediaType;
@@ -26,17 +26,17 @@ public class TourApiClient {
     }
 
     // 키워드 검색 API에 필요한 파라미터를 붙여 호출
-    public JsonNode searchKeyword(String keyword) {
+    public TourApiEnvelope searchKeyword(String keyword) {
         return get("/searchKeyword2", keyword, null);
     }
 
     // 상세 조회 API에 필요한 파라미터를 붙여 호출
-    public JsonNode getDetail(String contentId) {
+    public TourApiEnvelope getDetail(String contentId) {
         return get("/detailCommon2", null, contentId);
     }
 
     // 검색과 상세 조회 공통 호출 흐름을 한 곳에서 처리
-    private JsonNode get(String path, String keyword, String contentId) {
+    private TourApiEnvelope get(String path, String keyword, String contentId) {
         String serviceKey = getValidatedServiceKey();
 
         try {
@@ -73,7 +73,7 @@ public class TourApiClient {
                     .retrieve()
                     .body(String.class);
 
-            return objectMapper.readTree(responseBody);
+            return objectMapper.readValue(responseBody, TourApiEnvelope.class);
         } catch (RestClientException | JsonProcessingException exception) {
             // 외부 API 오류는 서비스 계층에서 502로 변환할 수 있게 감싼다
             throw new ExternalApiException("외부 관광 API 호출에 실패했습니다.", exception);

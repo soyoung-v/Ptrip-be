@@ -1,8 +1,12 @@
-package com.ptrip.ptripbe.tour.service;
+package com.ptrip.ptripbe.application.tour;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ptrip.ptripbe.tour.client.TourApiClient;
-import com.ptrip.ptripbe.tour.dto.TourItemDto;
+import com.ptrip.ptripbe.application.tour.model.TourApiBody;
+import com.ptrip.ptripbe.application.tour.model.TourApiContent;
+import com.ptrip.ptripbe.application.tour.model.TourApiEnvelope;
+import com.ptrip.ptripbe.application.tour.model.TourApiItems;
+import com.ptrip.ptripbe.application.tour.model.TourItemDto;
+import com.ptrip.ptripbe.application.tour.model.TourSearchGetReq;
 import com.ptrip.ptripbe.tour.exception.BadRequestException;
 import com.ptrip.ptripbe.tour.exception.ExternalApiException;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,42 +34,34 @@ class TourServiceTest {
     @BeforeEach
     // 서비스 테스트에 필요한 목과 JSON 파서를 준비
     void setUp() {
-        tourService = new TourService(tourApiClient);
         objectMapper = new ObjectMapper();
+        tourService = new TourService(tourApiClient, objectMapper);
     }
 
     @Test
     // 배열 형태 검색 응답이 DTO 목록으로 바뀌는지 확인
     void searchReturnsMappedList() throws Exception {
         String response = """
-                {
-                  "response": {
-                    "body": {
-                      "items": {
-                        "item": [
-                          {
-                            "contentid": "1",
-                            "contenttypeid": "12",
-                            "title": "부산 관광지",
-                            "addr1": "부산",
-                            "addr2": "해운대구",
-                            "firstimage": "img1",
-                            "firstimage2": "img2",
-                            "mapx": "129.0",
-                            "mapy": "35.0",
-                            "tel": "051-000-0000"
-                          }
-                        ]
-                      }
-                    }
+                [
+                  {
+                    "contentid": "1",
+                    "contenttypeid": "12",
+                    "title": "부산 관광지",
+                    "addr1": "부산",
+                    "addr2": "해운대구",
+                    "firstimage": "img1",
+                    "firstimage2": "img2",
+                    "mapx": "129.0",
+                    "mapy": "35.0",
+                    "tel": "051-000-0000"
                   }
-                }
+                ]
                 """;
 
         given(tourApiClient.searchKeyword("부산"))
-                .willReturn(objectMapper.readTree(response));
+                .willReturn(createResponse(response));
 
-        List<TourItemDto> result = tourService.search("부산");
+        List<TourItemDto> result = tourService.search(createReq("부산"));
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).title()).isEqualTo("부산 관광지");
@@ -75,26 +71,18 @@ class TourServiceTest {
     @Test
     // 결과가 비어 있으면 예외 대신 빈 목록을 반환해야 한다
     void searchReturnsEmptyListWhenNoItemsExist() throws Exception {
-        String response = """
-                {
-                  "response": {
-                    "body": {
-                      "items": ""
-                    }
-                  }
-                }
-                """;
+        String response = "\"\"";
 
         given(tourApiClient.searchKeyword("부산"))
-                .willReturn(objectMapper.readTree(response));
+                .willReturn(createResponse(response));
 
-        assertThat(tourService.search("부산")).isEmpty();
+        assertThat(tourService.search(createReq("부산"))).isEmpty();
     }
 
     @Test
     // 공백 키워드는 서비스 레벨에서 바로 차단한다
     void searchThrows400WhenKeywordIsBlank() {
-        assertThatThrownBy(() -> tourService.search(" "))
+        assertThatThrownBy(() -> tourService.search(createReq(" ")))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("keyword는 비어 있을 수 없습니다.");
     }
@@ -105,8 +93,24 @@ class TourServiceTest {
         given(tourApiClient.searchKeyword("부산"))
                 .willThrow(new ExternalApiException("외부 관광 API 호출에 실패했습니다."));
 
-        assertThatThrownBy(() -> tourService.search("부산"))
+        assertThatThrownBy(() -> tourService.search(createReq("부산")))
                 .isInstanceOf(ExternalApiException.class)
                 .hasMessage("외부 관광 API 호출에 실패했습니다.");
+    }
+
+    private TourSearchGetReq createReq(String keyword) {
+        TourSearchGetReq req = new TourSearchGetReq();
+        req.setKeyword(keyword);
+        return req;
+    }
+
+    private TourApiEnvelope createResponse(String itemJson) throws Exception {
+        return new TourApiEnvelope(
+                new TourApiContent(
+                        new TourApiBody(
+                                new TourApiItems(objectMapper.readTree(itemJson))
+                        )
+                )
+        );
     }
 }

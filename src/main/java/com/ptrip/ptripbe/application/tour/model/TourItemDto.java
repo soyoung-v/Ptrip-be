@@ -1,4 +1,4 @@
-package com.ptrip.ptripbe.tour.dto;
+package com.ptrip.ptripbe.application.tour.model;
 
 // 프론트에서 바로 사용하기 쉬운 관광 정보 응답 DTO
 public record TourItemDto(
