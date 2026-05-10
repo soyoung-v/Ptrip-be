@@ -69,6 +69,74 @@ class TourServiceTest {
     }
 
     @Test
+    // 주소에 키워드가 없는 결과는 검색 목록에서 제외한다
+    void searchFiltersOutIrrelevantItems() throws Exception {
+        String response = """
+                [
+                  {
+                    "contentid": "1",
+                    "contenttypeid": "12",
+                    "title": "Daegu Modern Alley",
+                    "addr1": "Daegu Jung-gu",
+                    "addr2": "Gyesan-dong",
+                    "firstimage": "img1",
+                    "firstimage2": "img2",
+                    "mapx": "128.0",
+                    "mapy": "35.8",
+                    "tel": "053-000-0000"
+                  },
+                  {
+                    "contentid": "2",
+                    "contenttypeid": "39",
+                    "title": "Busan Local Restaurant",
+                    "addr1": "Busan Suyeong-gu",
+                    "addr2": "Millak-dong",
+                    "firstimage": "img3",
+                    "firstimage2": "img4",
+                    "mapx": "126.9",
+                    "mapy": "37.5",
+                    "tel": "02-000-0000"
+                  }
+                ]
+                """;
+
+        given(tourApiClient.searchKeyword("DaEgU"))
+                .willReturn(createResponse(response));
+
+        List<TourItemDto> result = tourService.search(createReq("  DaEgU  "));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).contentId()).isEqualTo("1");
+        assertThat(result.get(0).title()).isEqualTo("Daegu Modern Alley");
+    }
+
+    @Test
+    // 제목만 일치하고 주소가 다르면 검색 목록에서 제외한다
+    void searchFiltersOutTitleOnlyMatches() throws Exception {
+        String response = """
+                [
+                  {
+                    "contentid": "3",
+                    "contenttypeid": "39",
+                    "title": "Daegu Soup Restaurant",
+                    "addr1": "Busan Suyeong-gu",
+                    "addr2": "Millak-dong",
+                    "firstimage": "img5",
+                    "firstimage2": "img6",
+                    "mapx": "126.9",
+                    "mapy": "37.5",
+                    "tel": "02-000-0000"
+                  }
+                ]
+                """;
+
+        given(tourApiClient.searchKeyword("Daegu"))
+                .willReturn(createResponse(response));
+
+        assertThat(tourService.search(createReq("Daegu"))).isEmpty();
+    }
+
+    @Test
     // 결과가 비어 있으면 예외 대신 빈 목록을 반환해야 한다
     void searchReturnsEmptyListWhenNoItemsExist() throws Exception {
         String response = "\"\"";
@@ -77,6 +145,32 @@ class TourServiceTest {
                 .willReturn(createResponse(response));
 
         assertThat(tourService.search(createReq("부산"))).isEmpty();
+    }
+
+    @Test
+    // 필터링 후 남는 결과가 없으면 빈 목록을 반환해야 한다
+    void searchReturnsEmptyListWhenAllItemsAreFilteredOut() throws Exception {
+        String response = """
+                [
+                  {
+                    "contentid": "2",
+                    "contenttypeid": "39",
+                    "title": "Busan Local Restaurant",
+                    "addr1": "Busan Suyeong-gu",
+                    "addr2": "Millak-dong",
+                    "firstimage": "img3",
+                    "firstimage2": "img4",
+                    "mapx": "126.9",
+                    "mapy": "37.5",
+                    "tel": "02-000-0000"
+                  }
+                ]
+                """;
+
+        given(tourApiClient.searchKeyword("Daegu"))
+                .willReturn(createResponse(response));
+
+        assertThat(tourService.search(createReq("Daegu"))).isEmpty();
     }
 
     @Test

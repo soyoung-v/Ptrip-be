@@ -31,8 +31,11 @@ public class TourService {
             throw new BadRequestException("keyword는 비어 있을 수 없습니다.");
         }
 
-        TourApiEnvelope response = tourApiClient.searchKeyword(req.getKeyword().trim());
+        String keyword = req.getKeyword().trim();
+        TourApiEnvelope response = tourApiClient.searchKeyword(keyword);
         return extractItems(response).stream()
+                // 지역 키워드와 무관한 상호명 결과를 한 번 더 걸러낸다
+                .filter(item -> matchesKeyword(item, keyword))
                 .map(this::toDto)
                 .toList();
     }
@@ -87,5 +90,23 @@ public class TourService {
         }
 
         return List.of(objectMapper.convertValue(itemNode, TourApiItem.class));
+    }
+
+    // 주소에 검색어가 포함된 결과만 유지한다
+    private boolean matchesKeyword(TourApiItem item, String keyword) {
+        String normalizedKeyword = normalize(keyword);
+
+        return contains(item.addr1(), normalizedKeyword)
+                || contains(item.addr2(), normalizedKeyword);
+    }
+
+    // 공백과 대소문자 차이를 없애고 비교할 문자열을 정리한다
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase();
+    }
+
+    // null 안전하게 포함 여부를 검사한다
+    private boolean contains(String source, String keyword) {
+        return normalize(source).contains(keyword);
     }
 }

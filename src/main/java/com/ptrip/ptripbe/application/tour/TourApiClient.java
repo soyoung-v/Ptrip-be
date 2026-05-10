@@ -52,7 +52,7 @@ public class TourApiClient {
                         if (keyword != null) {
                             // 검색 API는 요구된 페이징과 정렬 조건을 고정으로 사용
                             builder.queryParam("keyword", keyword)
-                                    .queryParam("numOfRows", 12)
+                                    .queryParam("numOfRows", 300)
                                     .queryParam("pageNo", 1)
                                     .queryParam("arrange", "O");
                         }
