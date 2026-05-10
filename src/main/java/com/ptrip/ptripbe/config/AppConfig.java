@@ -1,5 +1,6 @@
 package com.ptrip.ptripbe.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,6 +15,12 @@ public class AppConfig {
     // 외부 API 호출 시 재사용할 RestClient 빌더를 생성
     public RestClient.Builder restClientBuilder() {
         return RestClient.builder();
+    }
+
+    @Bean
+    // 외부 API JSON 응답을 수동 파싱할 ObjectMapper를 생성
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 
     @Bean

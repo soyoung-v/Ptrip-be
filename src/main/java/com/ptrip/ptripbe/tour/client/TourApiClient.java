@@ -1,10 +1,13 @@
 package com.ptrip.ptripbe.tour.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ptrip.ptripbe.config.TourApiProperties;
 import com.ptrip.ptripbe.tour.exception.ExternalApiException;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -14,10 +17,12 @@ public class TourApiClient {
 
     private final RestClient restClient;
     private final TourApiProperties properties;
+    private final ObjectMapper objectMapper;
 
-    public TourApiClient(RestClient restClient, TourApiProperties properties) {
+    public TourApiClient(RestClient restClient, TourApiProperties properties, ObjectMapper objectMapper) {
         this.restClient = restClient;
         this.properties = properties;
+        this.objectMapper = objectMapper;
     }
 
     // 키워드 검색 API에 필요한 파라미터를 붙여 호출
@@ -32,12 +37,14 @@ public class TourApiClient {
 
     // 검색과 상세 조회 공통 호출 흐름을 한 곳에서 처리
     private JsonNode get(String path, String keyword, String contentId) {
+        String serviceKey = getValidatedServiceKey();
+
         try {
-            return restClient.get()
+            String responseBody = restClient.get()
                     .uri(uriBuilder -> {
                         var builder = uriBuilder
                                 .path(path)
-                                .queryParam("serviceKey", properties.serviceKey())
+                                .queryParam("serviceKey", serviceKey)
                                 .queryParam("MobileOS", properties.mobileOs())
                                 .queryParam("MobileApp", properties.mobileApp())
                                 .queryParam("_type", "json");
@@ -64,10 +71,27 @@ public class TourApiClient {
                     })
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
-                    .body(JsonNode.class);
-        } catch (RestClientException exception) {
+                    .body(String.class);
+
+            return objectMapper.readTree(responseBody);
+        } catch (RestClientException | JsonProcessingException exception) {
             // 외부 API 오류는 서비스 계층에서 502로 변환할 수 있게 감싼다
             throw new ExternalApiException("외부 관광 API 호출에 실패했습니다.", exception);
         }
+    }
+
+    // 환경변수 미설정이나 placeholder 원문이 남은 경우를 요청 전에 차단
+    private String getValidatedServiceKey() {
+        String serviceKey = properties.serviceKey();
+
+        if (!StringUtils.hasText(serviceKey)) {
+            throw new ExternalApiException("TOUR_API_SERVICE_KEY 환경변수가 설정되지 않았습니다.");
+        }
+
+        if (serviceKey.contains("${") || serviceKey.contains("}")) {
+            throw new ExternalApiException("tour.api.service-key 설정이 실제 서비스키로 바인딩되지 않았습니다.");
+        }
+
+        return serviceKey;
     }
 }
